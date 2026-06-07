@@ -20,19 +20,22 @@ _config_data = {}
 
 def load_config():
     """Load configuration from file or prompt user."""
-    # Default MQTT settings
+    # Default settings
     defaults = {
         'mqtt_enabled': False,
         'mqtt_broker': 'localhost',
         'mqtt_port': 1883,
-        'mqtt_topic': 'bambucuts/estop'
+        'mqtt_topic': 'bambucuts/estop',
+        'printer_model': 'A1_MINI',  # Default printer model
+        'enable_soft_limits': True,  # Enable safety limits by default
+        'safety_margin': 5.0,  # Default 5mm safety margin
     }
 
     if CONFIG_FILE.exists():
         try:
             with open(CONFIG_FILE, 'r') as f:
                 config = json.load(f)
-                # Add MQTT defaults if not present
+                # Add defaults if not present
                 for key, value in defaults.items():
                     if key not in config:
                         config[key] = value
@@ -49,13 +52,25 @@ def load_config():
     serial = input("Printer Serial Number (find on printer): ").strip()
     access_code = input("Access Code (from printer screen): ").strip()
 
+    # Printer model selection
+    print("\nAvailable printer models:")
+    print("  1. A1 mini (default)")
+    print("  2. A1")
+    model_choice = input("Select printer model (1-2, default=1): ").strip()
+    
+    if model_choice == '2':
+        printer_model = 'A1'
+    else:
+        printer_model = 'A1_MINI'
+
     config = {
         'ip': ip,
         'serial': serial,
-        'access_code': access_code
+        'access_code': access_code,
+        'printer_model': printer_model,
     }
 
-    # Add MQTT defaults
+    # Add defaults
     config.update(defaults)
 
     # Save the configuration
@@ -76,7 +91,9 @@ def save_config(config):
         return False
 
 
-def update_config(ip=None, serial=None, access_code=None, mqtt_enabled=None, mqtt_broker=None, mqtt_port=None, mqtt_topic=None):
+def update_config(ip=None, serial=None, access_code=None, printer_model=None, 
+                 enable_soft_limits=None, safety_margin=None, mqtt_enabled=None, 
+                 mqtt_broker=None, mqtt_port=None, mqtt_topic=None):
     """Update configuration with new values."""
     try:
         # Update with new values (only if provided)
@@ -86,6 +103,12 @@ def update_config(ip=None, serial=None, access_code=None, mqtt_enabled=None, mqt
             _config_data['serial'] = serial
         if access_code is not None:
             _config_data['access_code'] = access_code
+        if printer_model is not None:
+            _config_data['printer_model'] = printer_model
+        if enable_soft_limits is not None:
+            _config_data['enable_soft_limits'] = enable_soft_limits
+        if safety_margin is not None:
+            _config_data['safety_margin'] = max(0, float(safety_margin))
         if mqtt_enabled is not None:
             _config_data['mqtt_enabled'] = mqtt_enabled
         if mqtt_broker is not None:
@@ -97,7 +120,9 @@ def update_config(ip=None, serial=None, access_code=None, mqtt_enabled=None, mqt
 
         # Save to file
         if save_config(_config_data):
-            print(f"Configuration updated: IP={_config_data['ip']}, Serial={_config_data['serial']}")
+            print(f"Configuration updated: IP={_config_data.get('ip')}, "
+                  f"Model={_config_data.get('printer_model')}, "
+                  f"Limits Enabled={_config_data.get('enable_soft_limits')}")
             return True, 'Configuration saved successfully'
         else:
             return False, 'Failed to save configuration file'
@@ -113,4 +138,3 @@ def get_config():
 
 # Load configuration on module import
 _config_data.update(load_config())
-
